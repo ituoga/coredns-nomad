@@ -44,8 +44,9 @@ This plugin reports readiness to the ready plugin. It will be ready only when it
 Enable nomad with and resolve all services with `.nomad` as the suffix. `cache` plugin is used to cache the responses for 30 seconds. This avoids a lookup to the Nomad server for every request.
 
 ```
-nomad:1053 {
+service.nomad.:1053 {
     nomad {
+        zone service.nomad
 	  	address http://127.0.0.1:4646
     }
     cache 30
@@ -142,3 +143,11 @@ redis.default.service.nomad.	8	IN	A	192.168.29.76
 ### plugin.cfg
 
 This plugin is intended to appear twoard the end of the plugin list, usually near the `proxy` plugin declaration.
+
+```
+nomad:github.com/ituoga/coredns-nomad
+```
+
+### Author
+
+Author https://github.com/mr-karan

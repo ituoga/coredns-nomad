@@ -40,7 +40,10 @@ func (n Nomad) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 	state := request.Request{W: w, Req: r}
 	qname := state.Name()
 	qtype := state.QType()
+
 	originalQName := qname
+
+	// remove tail for example "service.nomad"
 	qname = strings.ReplaceAll(qname, zone, "")
 	if len(qname) == 0 {
 		return plugin.NextOrFailure(n.Name(), n.Next, ctx, w, r)
@@ -50,10 +53,10 @@ func (n Nomad) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 	// Split the query name with a `.` as the delimiter and extract namespace and service name.
 	// If the query is not for a Nomad service, return.
 	qnameSplit := dns.SplitDomainName(qname)
-	// log.Errorf("%+v", qnameSplit)
 	if len(qname) < 2 {
 		return plugin.NextOrFailure(n.Name(), n.Next, ctx, w, r)
 	}
+
 	namespace := qnameSplit[1]
 	serviceName := qnameSplit[0]
 
@@ -84,9 +87,6 @@ func (n Nomad) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 
 	// If no service registrations are found, ignore this service.
 	if len(svcRegistrations) == 0 {
-		// m.Rcode = dns.RcodeNameError
-		// w.WriteMsg(m)
-		// requestFailedCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
 		m.Answer = append(m.Answer, &dns.SOA{
 			Hdr: dns.RR_Header{
 				Name:   dns.Fqdn(originalQName),

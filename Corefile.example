@@ -1,11 +1,12 @@
-service.nomad:1053 {
+service.nomad.:1053 {
+    forwarders 1.1.1.1
     errors
     debug
     health
     log
     nomad {
         zone service.nomad
-	  	address http://127.0.0.1:4646 http://127.0.0.2:4646 http://127.0.0.3:4646
+	  	address http://127.0.0.1:4646
         ttl 10
     }
     prometheus :9153
