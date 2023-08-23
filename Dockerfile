@@ -1,5 +1,5 @@
 FROM golang:1.21-alpine
-RUN apk update && apt add make
+RUN apk update && apk add make
 WORKDIR /app
 
 RUN git clone https://github.com/coredns/coredns
