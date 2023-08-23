@@ -1,4 +1,4 @@
-FROM golang:1.21.0
+FROM golang:1.21-alpine
 RUN apk update && apt add make
 WORKDIR /app
 
