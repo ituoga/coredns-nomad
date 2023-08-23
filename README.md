@@ -150,4 +150,4 @@ nomad:github.com/ituoga/coredns-nomad
 
 ### Author
 
-Author https://github.com/mr-karan
+https://github.com/mr-karan
