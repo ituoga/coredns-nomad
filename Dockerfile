@@ -8,7 +8,7 @@ WORKDIR /app/coredns
 RUN go mod download
 
 # RUN CGO_ENABLED=0 go build -o /coredns
-RUN make
+RUN BINARY=/coredns make
 
 FROM scratch
 WORKDIR /
