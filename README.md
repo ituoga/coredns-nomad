@@ -140,6 +140,35 @@ redis.default.service.nomad.	8	IN	A	192.168.29.76
 ;; MSG SIZE  rcvd: 339
 ```
 
+### SOA Record
+
+```
+$ dig @localhost -p 1053 1dns.default.service.nomad.
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.2-Ubuntu <<>> @localhost -p 1053 1dns.default.service.nomad.
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 21012
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 6d146bb140b4d8ca (echoed)
+;; QUESTION SECTION:
+;1dns.default.service.nomad.    IN      A
+
+;; ANSWER SECTION:
+1dns.default.service.nomad. 5   IN      SOA     ns1.1dns.default.service.nomad. ns1.1dns.default.service.nomad. 1 3600 600 604800 3600
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1#1053(localhost) (UDP)
+;; WHEN: Wed Aug 23 21:14:41 EEST 2023
+;; MSG SIZE  rcvd: 189
+```
+
+
 ### plugin.cfg
 
 This plugin is intended to appear twoard the end of the plugin list, usually near the `proxy` plugin declaration.

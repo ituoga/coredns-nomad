@@ -160,7 +160,6 @@ func (n Nomad) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 				})
 			}
 		default:
-			// log.Errorf("%+v", qtype)
 			m.Rcode = dns.RcodeNotImplemented
 			err = w.WriteMsg(m)
 			requestFailedCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
