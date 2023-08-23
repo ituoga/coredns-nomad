@@ -10,6 +10,14 @@ The nomad plugin serves DNS records for services registered with Nomad. Nomad 1.
 
 The query can be looked up with the format `service.namespace.nomad`. The plugin currently handles A, AAAA and SRV records. Refer to [#Usage Example](#usage-example) for more details.
 
+### Image 
+
+```
+config {
+    image = "ghcr.io/ituoga/coredns-nomad:latest"
+}
+```
+
 ## Syntax
 
 ~~~ txt
