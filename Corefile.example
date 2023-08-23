@@ -1,0 +1,13 @@
+service.nomad:1053 {
+    errors
+    debug
+    health
+    log
+    nomad {
+        zone service.nomad
+	  	address http://127.0.0.1:4646 http://127.0.0.2:4646 http://127.0.0.3:4646
+        ttl 10
+    }
+    prometheus :9153
+    cache 30
+}
