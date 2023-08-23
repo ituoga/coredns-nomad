@@ -33,6 +33,8 @@ job "dns" {
         ]
         // network_mode = "weave"
         // ipv4_address = "10.100.255.100"
+
+        //  dns_servers  = ["10.100.255.100"]
         ports = ["dns"]
         args = ["-conf", "/etc/Corefile", "-dns.port", "53"]
       }
