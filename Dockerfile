@@ -7,7 +7,8 @@ RUN echo "nomad:github.com/ituoga/coredns-nomad" >> coredns/plugin.cfg
 WORKDIR /app/coredns
 RUN go mod download
 
-RUN make BINARY=/coredns
+RUN make 
+RUN mv coredns /coredns
 
 FROM scratch
 WORKDIR /
