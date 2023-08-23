@@ -10,12 +10,70 @@ The nomad plugin serves DNS records for services registered with Nomad. Nomad 1.
 
 The query can be looked up with the format `service.namespace.nomad`. The plugin currently handles A, AAAA and SRV records. Refer to [#Usage Example](#usage-example) for more details.
 
-### Image 
+## Example job templte 
 
 ```
-config {
-    image = "ghcr.io/ituoga/coredns-nomad:latest"
+job "dns" {
+  type = "service"
+
+  group "dns" {
+    network {
+      port "dns" {
+        // static = 53
+        to = 53
+      }
+    }
+    task "dns" {
+      driver = "docker"
+
+      config {
+        image = "ghcr.io/ituoga/coredns-nomad:latest"
+        volumes = [
+          "secrets/coredns/Corefile:/etc/Corefile:ro",
+        ]
+        // network_mode = "weave"
+        // ipv4_address = "10.100.255.100"
+        ports = ["dns"]
+        args = ["-conf", "/etc/Corefile", "-dns.port", "53"]
+      }
+      service {
+        name         = "dns"
+        provider     = "nomad"
+        port         = "53"
+        address_mode = "driver"
+      }
+      template {
+        data          = <<EOF
+service.nomad.:1053 {
+    errors
+    debug
+    health
+    log
+    nomad {
+      zone service.nomad
+	  	address http://10.0.0.1:4646
+      ttl 10
+    }
+    cache 30
 }
+EOF
+        destination   = "secrets/coredns/Corefile"
+        change_mode   = "signal"
+        change_signal = "SIGHUP"
+      }
+    }
+  }
+}
+
+EOF
+        destination   = "secrets/coredns/Corefile"
+        change_mode   = "signal"
+        change_signal = "SIGHUP"
+      }
+    }
+  }
+}
+
 ```
 
 ## Syntax
