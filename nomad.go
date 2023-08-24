@@ -102,7 +102,11 @@ func initializeMessage(state request.Request, ttl uint32) (*dns.Msg, dns.RR_Head
 
 func fetchServiceRegistrations(n Nomad, serviceName, namespace string) ([]*api.ServiceRegistration, *api.QueryMeta, error) {
 	log.Debugf("Looking up record for svc: %s namespace: %s", serviceName, namespace)
-	return n.getClient().Services().Get(serviceName, (&api.QueryOptions{Namespace: namespace}))
+	nc := n.getClient()
+	if nc == nil {
+		return nil, nil, fmt.Errorf("no Nomad client available")
+	}
+	return nc.Services().Get(serviceName, (&api.QueryOptions{Namespace: namespace}))
 }
 
 func handleServiceLookupError(w dns.ResponseWriter, m *dns.Msg, ctx context.Context, namespace string) (int, error) {
