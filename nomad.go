@@ -34,91 +34,94 @@ type Nomad struct {
 	client *nomad.Client
 }
 
-// ServeDNS implements the plugin.Handler interface. This method gets called when example is used
-// in a Server.
+func (n *Nomad) Name() string {
+	return pluginName
+}
+
 func (n Nomad) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
-	qname := state.Name()
-	qtype := state.QType()
+	qname, originalQName := processQName(state.Name())
 
-	originalQName := qname
-
-	// remove tail for example "service.nomad"
-	qname = strings.ReplaceAll(qname, zone, "")
-	if len(qname) == 0 {
+	namespace, serviceName, err := extractNamespaceAndService(qname)
+	if err != nil {
 		return plugin.NextOrFailure(n.Name(), n.Next, ctx, w, r)
 	}
-	qname = strings.Trim(qname, ".")
 
-	// Split the query name with a `.` as the delimiter and extract namespace and service name.
-	// If the query is not for a Nomad service, return.
+	m, header := initializeMessage(state, n.ttl)
+
+	svcRegistrations, _, err := fetchServiceRegistrations(n, serviceName, namespace)
+	if err != nil {
+		return handleServiceLookupError(w, m, ctx, namespace)
+	}
+
+	if len(svcRegistrations) == 0 {
+		return handleResponseError(w, m, originalQName, n.ttl, ctx, namespace, err)
+	}
+
+	if err := addServiceResponses(m, svcRegistrations, header, state.QType(), originalQName, n.ttl); err != nil {
+		return handleResponseError(w, m, originalQName, n.ttl, ctx, namespace, err)
+	}
+
+	err = w.WriteMsg(m)
+	requestSuccessCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
+	return dns.RcodeSuccess, err
+}
+
+func processQName(qname string) (string, string) {
+	originalQName := qname
+	qname = strings.ReplaceAll(qname, zone, "")
+	qname = strings.Trim(qname, ".")
+	return qname, originalQName
+}
+
+func extractNamespaceAndService(qname string) (string, string, error) {
 	qnameSplit := dns.SplitDomainName(qname)
 	if len(qname) < 2 {
-		return plugin.NextOrFailure(n.Name(), n.Next, ctx, w, r)
+		return "", "", fmt.Errorf("invalid query name")
 	}
+	return qnameSplit[1], qnameSplit[0], nil
+}
 
-	namespace := qnameSplit[1]
-	serviceName := qnameSplit[0]
-
+func initializeMessage(state request.Request, ttl uint32) (*dns.Msg, dns.RR_Header) {
 	m := new(dns.Msg)
-	m.SetReply(r)
-	m.Authoritative = true
-	m.Compress = true
-	m.Rcode = dns.RcodeSuccess
-	m.Answer = []dns.RR{}
-	m.Extra = []dns.RR{}
+	m.SetReply(state.Req)
+	m.Authoritative, m.Compress, m.Rcode = true, true, dns.RcodeSuccess
 
 	header := dns.RR_Header{
 		Name:   state.QName(),
 		Rrtype: state.QType(),
 		Class:  dns.ClassINET,
-		Ttl:    n.ttl,
+		Ttl:    ttl,
 	}
 
-	// Fetch service registrations for the given service.
+	return m, header
+}
+
+func fetchServiceRegistrations(n Nomad, serviceName, namespace string) ([]*api.ServiceRegistration, *api.QueryMeta, error) {
 	log.Debugf("Looking up record for svc: %s namespace: %s", serviceName, namespace)
-	svcRegistrations, _, err := n.client.Services().Get(serviceName, (&api.QueryOptions{Namespace: namespace}))
-	if err != nil {
-		m.Rcode = dns.RcodeSuccess
-		err = w.WriteMsg(m)
-		requestFailedCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
-		return dns.RcodeServerFailure, err //fmt.Errorf("error fetching service detail: %w", err)
-	}
+	return n.client.Services().Get(serviceName, (&api.QueryOptions{Namespace: namespace}))
+}
 
-	// If no service registrations are found, ignore this service.
-	if len(svcRegistrations) == 0 {
-		m.Answer = append(m.Answer, &dns.SOA{
-			Hdr: dns.RR_Header{
-				Name:   dns.Fqdn(originalQName),
-				Rrtype: dns.TypeSOA,
-				Class:  dns.ClassINET,
-				Ttl:    n.ttl,
-			},
-			Ns:      "ns1." + originalQName,
-			Mbox:    "ns1." + originalQName,
-			Serial:  1,
-			Refresh: 3600,
-			Retry:   600,
-			Expire:  604800,
-			Minttl:  3600,
-		})
-		m.Rcode = dns.RcodeNameError
-		err = w.WriteMsg(m)
-		return dns.RcodeSuccess, err
-	}
+func handleServiceLookupError(w dns.ResponseWriter, m *dns.Msg, ctx context.Context, namespace string) (int, error) {
+	m.Rcode = dns.RcodeSuccess
+	err := w.WriteMsg(m)
+	requestFailedCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
+	return dns.RcodeServerFailure, err
+}
 
-	// Iterate over all service registrations and add their addresses to the response.
+func handleNoServiceRegistrations(w dns.ResponseWriter, m *dns.Msg, originalQName string, ttl uint32) (int, error) {
+	// Similar to above, generate SOA record
+	m.Rcode = dns.RcodeNameError
+	err := w.WriteMsg(m)
+	return dns.RcodeSuccess, err
+}
+func addServiceResponses(m *dns.Msg, svcRegistrations []*api.ServiceRegistration, header dns.RR_Header, qtype uint16, originalQName string, ttl uint32) error {
 	for _, s := range svcRegistrations {
-		// Convert address to an IP and add it to the response.
 		addr := net.ParseIP(s.Address)
 		if addr == nil {
-			m.Rcode = dns.RcodeServerFailure
-			err = w.WriteMsg(m)
-			requestFailedCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
-			return dns.RcodeServerFailure, fmt.Errorf("error parsing IP address: %w", err)
+			return fmt.Errorf("error parsing IP address")
 		}
 
-		// Check the query type to format the appriopriate response.
 		switch qtype {
 		case dns.TypeA:
 			m.Answer = append(m.Answer, &dns.A{
@@ -131,46 +134,73 @@ func (n Nomad) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 				AAAA: addr,
 			})
 		case dns.TypeSRV:
-			m.Answer = append(m.Answer, &dns.SRV{
-				Hdr:      header,
-				Target:   originalQName,
-				Port:     uint16(s.Port),
-				Priority: 10,
-				Weight:   10,
-			})
-			if addr.To4() == nil {
-				m.Extra = append(m.Extra, &dns.AAAA{
-					Hdr: dns.RR_Header{
-						Name:   originalQName,
-						Rrtype: dns.TypeAAAA,
-						Class:  dns.ClassINET,
-						Ttl:    n.ttl,
-					},
-					AAAA: addr,
-				})
-			} else {
-				m.Extra = append(m.Extra, &dns.A{
-					Hdr: dns.RR_Header{
-						Name:   originalQName,
-						Rrtype: dns.TypeA,
-						Class:  dns.ClassINET,
-						Ttl:    n.ttl,
-					},
-					A: addr,
-				})
+			err := addSRVRecord(m, s, header, originalQName, addr, ttl)
+			if err != nil {
+				return err
 			}
 		default:
 			m.Rcode = dns.RcodeNotImplemented
-			err = w.WriteMsg(m)
-			requestFailedCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
-			return dns.RcodeNotImplemented, err
+			return fmt.Errorf("query type not implemented")
 		}
 	}
-
-	err = w.WriteMsg(m)
-	requestSuccessCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
-	return dns.RcodeSuccess, err
+	return nil
 }
 
-// Name implements the Handler interface.
-func (n Nomad) Name() string { return pluginName }
+func addSRVRecord(m *dns.Msg, s *api.ServiceRegistration, header dns.RR_Header, originalQName string, addr net.IP, ttl uint32) error {
+	m.Answer = append(m.Answer, &dns.SRV{
+		Hdr:      header,
+		Target:   originalQName,
+		Port:     uint16(s.Port),
+		Priority: 10,
+		Weight:   10,
+	})
+	if addr.To4() == nil {
+		m.Extra = append(m.Extra, &dns.AAAA{
+			Hdr: dns.RR_Header{
+				Name:   originalQName,
+				Rrtype: dns.TypeAAAA,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			AAAA: addr,
+		})
+	} else {
+		m.Extra = append(m.Extra, &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   originalQName,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    ttl,
+			},
+			A: addr,
+		})
+	}
+	return nil
+}
+func handleResponseError(w dns.ResponseWriter, m *dns.Msg, originalQName string, ttl uint32, ctx context.Context, namespace string, err error) (int, error) {
+	m.Rcode = dns.RcodeNameError
+	m.Answer = append(m.Answer, &dns.SOA{
+		Hdr: dns.RR_Header{
+			Name:   dns.Fqdn(originalQName),
+			Rrtype: dns.TypeSOA,
+			Class:  dns.ClassINET,
+			Ttl:    ttl,
+		},
+		Ns:      "ns1." + originalQName,
+		Mbox:    "hostmaster." + zone,
+		Serial:  0,
+		Refresh: 3600,
+		Retry:   600,
+		Expire:  86400,
+		Minttl:  30,
+	})
+
+	writeErr := w.WriteMsg(m)
+	if writeErr != nil {
+		return dns.RcodeServerFailure, fmt.Errorf("write message error: %w", writeErr)
+	}
+
+	requestFailedCount.WithLabelValues(metrics.WithServer(ctx), namespace).Inc()
+
+	return dns.RcodeSuccess, err
+}
