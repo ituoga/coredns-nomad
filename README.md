@@ -1,4 +1,4 @@
-# nomad
+# CoreDNS Nomad plugin
 
 ## Name
 
