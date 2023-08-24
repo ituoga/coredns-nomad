@@ -12,7 +12,6 @@ import (
 	clog "github.com/coredns/coredns/plugin/pkg/log"
 	"github.com/coredns/coredns/request"
 	"github.com/hashicorp/nomad/api"
-	nomad "github.com/hashicorp/nomad/api"
 
 	"github.com/miekg/dns"
 )
@@ -31,9 +30,8 @@ type Nomad struct {
 	Next plugin.Handler
 
 	ttl uint32
-	// client *nomad.Client
 
-	clients []*nomad.Client // List of clients
+	clients []*api.Client // List of clients
 	current int
 }
 
