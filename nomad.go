@@ -116,12 +116,6 @@ func handleServiceLookupError(w dns.ResponseWriter, m *dns.Msg, ctx context.Cont
 	return dns.RcodeServerFailure, err
 }
 
-func handleNoServiceRegistrations(w dns.ResponseWriter, m *dns.Msg, originalQName string, ttl uint32) (int, error) {
-	// Similar to above, generate SOA record
-	m.Rcode = dns.RcodeNameError
-	err := w.WriteMsg(m)
-	return dns.RcodeSuccess, err
-}
 func addServiceResponses(m *dns.Msg, svcRegistrations []*api.ServiceRegistration, header dns.RR_Header, qtype uint16, originalQName string, ttl uint32) error {
 	for _, s := range svcRegistrations {
 		addr := net.ParseIP(s.Address)

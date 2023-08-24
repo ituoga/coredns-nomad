@@ -66,13 +66,3 @@ func createSOARecord(originalQName string, ttl uint32) *dns.SOA {
 		Minttl:  30,
 	}
 }
-
-func createSRVRecord(header dns.RR_Header, originalQName string, port int, priority, weight uint16) *dns.SRV {
-	return &dns.SRV{
-		Hdr:      header,
-		Target:   originalQName,
-		Port:     uint16(port),
-		Priority: priority,
-		Weight:   weight,
-	}
-}
