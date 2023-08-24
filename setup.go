@@ -17,17 +17,25 @@ func init() { plugin.Register(pluginName, setup) }
 // for parsing any extra options the nomad plugin may have. The first token this function sees is "nomad".
 func setup(c *caddy.Controller) error {
 	n := &Nomad{
-		ttl: uint32(defaultTTL),
+		ttl:     uint32(defaultTTL),
+		clients: make([]*nomad.Client, 0),
+		current: -1,
 	}
 	if err := parse(c, n); err != nil {
 		return plugin.Error("nomad", err)
 	}
 
-	// Do a ping check to check if the Nomad server is reachable.
-	_, err := n.client.Agent().Self()
-	if err != nil {
-		return plugin.Error("nomad", err)
+	for idx, client := range n.clients {
+		// Do a ping check to see if the Nomad server is reachable.
+		_, err := client.Agent().Self()
+		if err != nil {
+			continue // Connection failed, try next client
+		}
+
+		n.current = idx // Set the current client
+		break           // Connection succeeded, break the loop
 	}
+
 	// Mark the plugin as ready to use.
 	// https://github.com/coredns/coredns/blob/master/plugin.md#readiness
 	n.Ready()
@@ -43,13 +51,16 @@ func setup(c *caddy.Controller) error {
 func parse(c *caddy.Controller, n *Nomad) error {
 	cfg := nomad.DefaultConfig()
 
+	addresses := []string{} // Multiple addresses are stored here
+
 	for c.Next() {
 		for c.NextBlock() {
 			selector := strings.ToLower(c.Val())
 
 			switch selector {
 			case "address":
-				cfg.Address = c.RemainingArgs()[0]
+				// cfg.Address = c.RemainingArgs()[0]
+				addresses = append(addresses, c.RemainingArgs()[0])
 			case "token":
 				cfg.SecretID = c.RemainingArgs()[0]
 			case "zone":
@@ -69,12 +80,28 @@ func parse(c *caddy.Controller, n *Nomad) error {
 		}
 	}
 
-	// Create a new Nomad client.
-	nomadClient, err := nomad.NewClient(cfg)
-	if err != nil {
-		return plugin.Error("nomad", err)
+	for _, addr := range addresses {
+		cfg.Address = addr
+		client, err := nomad.NewClient(cfg)
+		if err != nil {
+			return plugin.Error("nomad", err)
+		}
+		n.clients = append(n.clients, client) // Store all clients
 	}
-	n.client = nomadClient
 
+	return nil
+}
+
+func (n *Nomad) getClient() *nomad.Client {
+	for i := 0; i < len(n.clients); i++ {
+		idx := (n.current + i) % len(n.clients)
+		_, err := n.clients[idx].Agent().Self()
+		if err == nil {
+			n.current = idx
+			return n.clients[idx]
+		} else {
+			log.Error("getClient", err)
+		}
+	}
 	return nil
 }

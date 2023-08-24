@@ -30,8 +30,11 @@ var (
 type Nomad struct {
 	Next plugin.Handler
 
-	ttl    uint32
-	client *nomad.Client
+	ttl uint32
+	// client *nomad.Client
+
+	clients []*nomad.Client // List of clients
+	current int
 }
 
 func (n *Nomad) Name() string {
@@ -99,7 +102,7 @@ func initializeMessage(state request.Request, ttl uint32) (*dns.Msg, dns.RR_Head
 
 func fetchServiceRegistrations(n Nomad, serviceName, namespace string) ([]*api.ServiceRegistration, *api.QueryMeta, error) {
 	log.Debugf("Looking up record for svc: %s namespace: %s", serviceName, namespace)
-	return n.client.Services().Get(serviceName, (&api.QueryOptions{Namespace: namespace}))
+	return n.getClient().Services().Get(serviceName, (&api.QueryOptions{Namespace: namespace}))
 }
 
 func handleServiceLookupError(w dns.ResponseWriter, m *dns.Msg, ctx context.Context, namespace string) (int, error) {

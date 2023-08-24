@@ -14,8 +14,9 @@ import (
 
 func TestNomad(t *testing.T) {
 	var demoNomad = Nomad{
-		Next: test.ErrorHandler(),
-		ttl:  uint32(defaultTTL),
+		Next:    test.ErrorHandler(),
+		ttl:     uint32(defaultTTL),
+		clients: make([]*nomad.Client, 0),
 	}
 
 	var cases = []test.Case{
@@ -64,12 +65,9 @@ func TestNomad(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Setup a fake Nomad server.
-	nomadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Setup a fake Nomad servers.
+	nomadServer1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		// default:
-		// 	t.Errorf("Not implemented: %v", r.URL.Path)
-		// 	return
 		case "/v1/service/example":
 			w.Write([]byte(`[{"Address":"1.2.3.4","Namespace":"default","Port":23202,"ServiceName":"example"}]`))
 		case "/v1/service/fakeipv6":
@@ -78,19 +76,83 @@ func TestNomad(t *testing.T) {
 			w.Write([]byte(`[{"Address":"1.2.3.4","Namespace":"default","Port":25395,"ServiceName":"multi"},{"Address":"1.2.3.5","Namespace":"default","Port":20888,"ServiceName":"multi"},{"Address":"1.2.3.6","Namespace":"default","Port":26292,"ServiceName":"multi"}]`))
 		case "/v1/service/nonexistent":
 			w.Write([]byte(`[]`))
+		case "/v1/agent/self":
+			w.Write([]byte(`{"Member":{"Name":"foobar1"}}`))
 		}
 	}))
-	defer nomadServer.Close()
+	defer nomadServer1.Close()
+	nomadServer2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/service/example":
+			w.Write([]byte(`[{"Address":"1.2.3.4","Namespace":"default","Port":23202,"ServiceName":"example"}]`))
+		case "/v1/service/fakeipv6":
+			w.Write([]byte(`[{"Address":"1:2:3::4","Namespace":"default","Port":8000,"ServiceName":"fakeipv6"}]`))
+		case "/v1/service/multi":
+			w.Write([]byte(`[{"Address":"1.2.3.4","Namespace":"default","Port":25395,"ServiceName":"multi"},{"Address":"1.2.3.5","Namespace":"default","Port":20888,"ServiceName":"multi"},{"Address":"1.2.3.6","Namespace":"default","Port":26292,"ServiceName":"multi"}]`))
+		case "/v1/service/nonexistent":
+			w.Write([]byte(`[]`))
+		case "/v1/agent/self":
+			w.Write([]byte(`{"Member":{"Name":"foobar2"}}`))
+		}
+	}))
+	defer nomadServer2.Close()
+	nomadServer3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/service/example":
+			w.Write([]byte(`[{"Address":"1.2.3.4","Namespace":"default","Port":23202,"ServiceName":"example"}]`))
+		case "/v1/service/fakeipv6":
+			w.Write([]byte(`[{"Address":"1:2:3::4","Namespace":"default","Port":8000,"ServiceName":"fakeipv6"}]`))
+		case "/v1/service/multi":
+			w.Write([]byte(`[{"Address":"1.2.3.4","Namespace":"default","Port":25395,"ServiceName":"multi"},{"Address":"1.2.3.5","Namespace":"default","Port":20888,"ServiceName":"multi"},{"Address":"1.2.3.6","Namespace":"default","Port":26292,"ServiceName":"multi"}]`))
+		case "/v1/service/nonexistent":
+			w.Write([]byte(`[]`))
+		case "/v1/agent/self":
+			w.Write([]byte(`{"Member":{"Name":"foobar3"}}`))
+		}
+	}))
+	defer nomadServer3.Close()
 
 	// Configure the plugin to use the fake Nomad server.
 	cfg := nomad.DefaultConfig()
-	cfg.Address = nomadServer.URL
-	client, err := nomad.NewClient(cfg)
+	cfg.Address = nomadServer1.URL
+	client1, err := nomad.NewClient(cfg)
 	if err != nil {
 		t.Errorf("Failed to create Nomad client: %v", err)
 		return
 	}
-	demoNomad.client = client
+
+	demoNomad.clients = append(demoNomad.clients, client1)
+
+	cfg.Address = nomadServer2.URL
+	client2, err := nomad.NewClient(cfg)
+	if err != nil {
+		t.Errorf("Failed to create Nomad client: %v", err)
+		return
+	}
+
+	demoNomad.clients = append(demoNomad.clients, client2)
+
+	cfg.Address = nomadServer3.URL
+	client3, err := nomad.NewClient(cfg)
+	if err != nil {
+		t.Errorf("Failed to create Nomad client: %v", err)
+		return
+	}
+	demoNomad.clients = append(demoNomad.clients, client3)
+
+	if demoNomad.getClient() != client1 {
+		t.Errorf("Expected client1")
+	}
+
+	nomadServer1.Close()
+
+	if demoNomad.getClient() == client1 {
+		t.Errorf("Expected client2")
+	}
+
+	if demoNomad.getClient() != client2 {
+		t.Errorf("Expected client2")
+	}
 
 	runTests(ctx, t, &demoNomad, cases)
 }
