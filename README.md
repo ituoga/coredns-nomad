@@ -39,7 +39,7 @@ job "dns" {
         args = ["-conf", "/etc/Corefile", "-dns.port", "53"]
       }
       service {
-        name         = "dns"
+        name         = "hostmaster"
         provider     = "nomad"
         port         = "53"
         address_mode = "driver"

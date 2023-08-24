@@ -124,15 +124,9 @@ func addServiceResponses(m *dns.Msg, svcRegistrations []*api.ServiceRegistration
 
 		switch qtype {
 		case dns.TypeA:
-			m.Answer = append(m.Answer, &dns.A{
-				Hdr: header,
-				A:   addr,
-			})
+			addARecord(m, header, addr)
 		case dns.TypeAAAA:
-			m.Answer = append(m.Answer, &dns.AAAA{
-				Hdr:  header,
-				AAAA: addr,
-			})
+			addAAAARecord(m, header, addr)
 		case dns.TypeSRV:
 			err := addSRVRecord(m, s, header, originalQName, addr, ttl)
 			if err != nil {
@@ -146,57 +140,11 @@ func addServiceResponses(m *dns.Msg, svcRegistrations []*api.ServiceRegistration
 	return nil
 }
 
-func addSRVRecord(m *dns.Msg, s *api.ServiceRegistration, header dns.RR_Header, originalQName string, addr net.IP, ttl uint32) error {
-	m.Answer = append(m.Answer, &dns.SRV{
-		Hdr:      header,
-		Target:   originalQName,
-		Port:     uint16(s.Port),
-		Priority: 10,
-		Weight:   10,
-	})
-	if addr.To4() == nil {
-		m.Extra = append(m.Extra, &dns.AAAA{
-			Hdr: dns.RR_Header{
-				Name:   originalQName,
-				Rrtype: dns.TypeAAAA,
-				Class:  dns.ClassINET,
-				Ttl:    ttl,
-			},
-			AAAA: addr,
-		})
-	} else {
-		m.Extra = append(m.Extra, &dns.A{
-			Hdr: dns.RR_Header{
-				Name:   originalQName,
-				Rrtype: dns.TypeA,
-				Class:  dns.ClassINET,
-				Ttl:    ttl,
-			},
-			A: addr,
-		})
-	}
-	return nil
-}
 func handleResponseError(w dns.ResponseWriter, m *dns.Msg, originalQName string, ttl uint32, ctx context.Context, namespace string, err error) (int, error) {
 	m.Rcode = dns.RcodeNameError
-	m.Answer = append(m.Answer, &dns.SOA{
-		Hdr: dns.RR_Header{
-			Name:   dns.Fqdn(originalQName),
-			Rrtype: dns.TypeSOA,
-			Class:  dns.ClassINET,
-			Ttl:    ttl,
-		},
-		Ns:      "ns1." + originalQName,
-		Mbox:    "hostmaster." + zone,
-		Serial:  0,
-		Refresh: 3600,
-		Retry:   600,
-		Expire:  86400,
-		Minttl:  30,
-	})
+	m.Answer = append(m.Answer, createSOARecord(originalQName, ttl))
 
-	writeErr := w.WriteMsg(m)
-	if writeErr != nil {
+	if writeErr := w.WriteMsg(m); writeErr != nil {
 		return dns.RcodeServerFailure, fmt.Errorf("write message error: %w", writeErr)
 	}
 
