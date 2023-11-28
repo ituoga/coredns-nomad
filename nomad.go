@@ -77,7 +77,7 @@ func processQName(qname string) (string, string) {
 
 func extractNamespaceAndService(qname string) (string, string, error) {
 	qnameSplit := dns.SplitDomainName(qname)
-	if len(qname) < 2 {
+	if len(qnameSplit) < 2 {
 		return "", "", fmt.Errorf("invalid query name")
 	}
 	return qnameSplit[1], qnameSplit[0], nil
