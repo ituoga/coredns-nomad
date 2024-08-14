@@ -100,7 +100,7 @@ func (n *Nomad) getClient() *nomad.Client {
 			n.current = idx
 			return n.clients[idx]
 		} else {
-			log.Error("getClient", err)
+			log.Error("getClient ", err)
 		}
 	}
 	return nil
