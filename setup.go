@@ -78,9 +78,16 @@ func parse(c *caddy.Controller, n *Nomad) error {
 		}
 	}
 
+	// Push an empty address to create a client solely based on the defaults.
+	if len(addresses) == 0 {
+		addresses = append(addresses, "")
+	}
+
 	for _, addr := range addresses {
 		cfg := nomad.DefaultConfig()
-		cfg.Address = addr
+		if len(addr) > 0 {
+			cfg.Address = addr
+		}
 		if len(token) > 0 {
 			cfg.SecretID = token
 		}
