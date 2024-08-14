@@ -123,6 +123,7 @@ func TestNomad(t *testing.T) {
 
 	demoNomad.clients = append(demoNomad.clients, client1)
 
+	cfg = nomad.DefaultConfig()
 	cfg.Address = nomadServer2.URL
 	client2, err := nomad.NewClient(cfg)
 	if err != nil {
@@ -132,6 +133,7 @@ func TestNomad(t *testing.T) {
 
 	demoNomad.clients = append(demoNomad.clients, client2)
 
+	cfg = nomad.DefaultConfig()
 	cfg.Address = nomadServer3.URL
 	client3, err := nomad.NewClient(cfg)
 	if err != nil {
