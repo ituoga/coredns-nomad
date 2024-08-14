@@ -49,8 +49,7 @@ func setup(c *caddy.Controller) error {
 }
 
 func parse(c *caddy.Controller, n *Nomad) error {
-	cfg := nomad.DefaultConfig()
-
+	var token string
 	addresses := []string{} // Multiple addresses are stored here
 
 	for c.Next() {
@@ -59,10 +58,9 @@ func parse(c *caddy.Controller, n *Nomad) error {
 
 			switch selector {
 			case "address":
-				// cfg.Address = c.RemainingArgs()[0]
 				addresses = append(addresses, c.RemainingArgs()[0])
 			case "token":
-				cfg.SecretID = c.RemainingArgs()[0]
+				token = c.RemainingArgs()[0]
 			case "zone":
 				zone = c.RemainingArgs()[0]
 			case "ttl":
@@ -81,7 +79,11 @@ func parse(c *caddy.Controller, n *Nomad) error {
 	}
 
 	for _, addr := range addresses {
+		cfg := nomad.DefaultConfig()
 		cfg.Address = addr
+		if len(token) > 0 {
+			cfg.SecretID = token
+		}
 		client, err := nomad.NewClient(cfg)
 		if err != nil {
 			return plugin.Error("nomad", err)
