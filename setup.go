@@ -95,6 +95,10 @@ func parse(c *caddy.Controller, n *Nomad) error {
 }
 
 func (n *Nomad) getClient() *nomad.Client {
+	// Don't bother querying Agent().Self() if there is only one client.
+	if len(n.clients) == 1 {
+		return n.clients[0]
+	}
 	for i := 0; i < len(n.clients); i++ {
 		idx := (n.current + i) % len(n.clients)
 		_, err := n.clients[idx].Agent().Self()
