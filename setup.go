@@ -49,8 +49,7 @@ func setup(c *caddy.Controller) error {
 }
 
 func parse(c *caddy.Controller, n *Nomad) error {
-	cfg := nomad.DefaultConfig()
-
+	var token string
 	addresses := []string{} // Multiple addresses are stored here
 
 	for c.Next() {
@@ -59,10 +58,9 @@ func parse(c *caddy.Controller, n *Nomad) error {
 
 			switch selector {
 			case "address":
-				// cfg.Address = c.RemainingArgs()[0]
 				addresses = append(addresses, c.RemainingArgs()[0])
 			case "token":
-				cfg.SecretID = c.RemainingArgs()[0]
+				token = c.RemainingArgs()[0]
 			case "zone":
 				zone = c.RemainingArgs()[0]
 			case "ttl":
@@ -80,8 +78,19 @@ func parse(c *caddy.Controller, n *Nomad) error {
 		}
 	}
 
+	// Push an empty address to create a client solely based on the defaults.
+	if len(addresses) == 0 {
+		addresses = append(addresses, "")
+	}
+
 	for _, addr := range addresses {
-		cfg.Address = addr
+		cfg := nomad.DefaultConfig()
+		if len(addr) > 0 {
+			cfg.Address = addr
+		}
+		if len(token) > 0 {
+			cfg.SecretID = token
+		}
 		client, err := nomad.NewClient(cfg)
 		if err != nil {
 			return plugin.Error("nomad", err)
@@ -93,6 +102,10 @@ func parse(c *caddy.Controller, n *Nomad) error {
 }
 
 func (n *Nomad) getClient() *nomad.Client {
+	// Don't bother querying Agent().Self() if there is only one client.
+	if len(n.clients) == 1 {
+		return n.clients[0]
+	}
 	for i := 0; i < len(n.clients); i++ {
 		idx := (n.current + i) % len(n.clients)
 		_, err := n.clients[idx].Agent().Self()
@@ -100,7 +113,7 @@ func (n *Nomad) getClient() *nomad.Client {
 			n.current = idx
 			return n.clients[idx]
 		} else {
-			log.Error("getClient", err)
+			log.Error("getClient ", err)
 		}
 	}
 	return nil

@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/coredns/caddy v1.1.1
 	github.com/coredns/coredns v1.10.0
-	github.com/hashicorp/nomad/api v0.0.0-20230102161616-d71d7fd056a5
+	github.com/hashicorp/nomad/api v0.0.0-20240814181438-aded4b35006a
 	github.com/miekg/dns v1.1.50
 	github.com/prometheus/client_golang v1.14.0
 )
@@ -18,8 +18,10 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645 // indirect
-	github.com/hashicorp/cronexpr v1.1.1 // indirect
+	github.com/hashicorp/cronexpr v1.1.2 // indirect
+	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
