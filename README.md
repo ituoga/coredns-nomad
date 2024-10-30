@@ -19,8 +19,8 @@ job "dns" {
   group "dns" {
     network {
       port "dns" {
-        // static = 53
-        to = 53
+        static = 1053
+        // to = 1053
       }
     }
     task "dns" {
@@ -28,35 +28,34 @@ job "dns" {
 
       config {
         image = "ghcr.io/ituoga/coredns-nomad:latest"
-        volumes = [
-          "secrets/coredns/Corefile:/etc/Corefile:ro",
-        ]
-        // network_mode = "weave"
-        // ipv4_address = "10.100.255.100"
-
-        //  dns_servers  = ["10.100.255.100"]
         ports = ["dns"]
-        args = ["-conf", "/etc/Corefile", "-dns.port", "53"]
+        args = ["-conf", "/secrets/coredns/Corefile", "-dns.port", "1053"]
       }
+
       service {
         name         = "hostmaster"
         provider     = "nomad"
-        port         = "53"
+        port         = "dns"
         address_mode = "driver"
       }
+
+      identity {
+        env = true
+      }
+
       template {
         data          = <<EOF
-service.nomad.:1053 {
-    errors
-    debug
-    health
-    log
-    nomad {
-      zone service.nomad
-	  	address http://10.0.0.1:4646
-      ttl 10
-    }
-    cache 30
+service.nomad. {
+  errors
+  debug
+  health
+  log
+  nomad {
+    zone service.nomad
+    address unix:///secrets/api.sock
+    ttl 10
+  }
+  cache 30
 }
 EOF
         destination   = "secrets/coredns/Corefile"
@@ -66,16 +65,6 @@ EOF
     }
   }
 }
-
-EOF
-        destination   = "secrets/coredns/Corefile"
-        change_mode   = "signal"
-        change_signal = "SIGHUP"
-      }
-    }
-  }
-}
-
 ```
 
 ## Syntax
@@ -103,7 +92,7 @@ If monitoring is enabled (via the *prometheus* directive) the following metric i
 
 The `server` label indicated which server handled the request. `namespace` indicates the namespace of the service in the query.
 
-## Ready
+## Ready (Not yet implemented)
 
 This plugin reports readiness to the ready plugin. It will be ready only when it has successfully connected to the Nomad server. It queries the [`/v1/agent/self`](https://developer.hashicorp.com/nomad/api-docs/agent#query-self) endpoint to check if it is ready.
 
