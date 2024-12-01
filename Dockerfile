@@ -1,18 +1,17 @@
-FROM golang:1.21-alpine
+FROM golang:1.23-alpine
 RUN apk update && apk add make git
+
 WORKDIR /app
-
 RUN git clone https://github.com/coredns/coredns
+COPY . /coredns-nomad
 RUN echo "nomad:github.com/ituoga/coredns-nomad" >> coredns/plugin.cfg
-WORKDIR /app/coredns
-RUN go mod download
 
-RUN make 
-RUN mv coredns /coredns
+WORKDIR /app/coredns
+RUN go mod edit -replace github.com/ituoga/coredns-nomad=/coredns-nomad
+RUN make gen coredns
 
 FROM scratch
-WORKDIR /
-COPY --from=0 /coredns /
+COPY --from=0 /app/coredns /
 
 EXPOSE 53
 

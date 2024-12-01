@@ -52,6 +52,7 @@ func (n Nomad) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 
 	svcRegistrations, _, err := fetchServiceRegistrations(n, serviceName, namespace)
 	if err != nil {
+		log.Warning(err)
 		return handleServiceLookupError(w, m, ctx, namespace)
 	}
 
