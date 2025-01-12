@@ -45,6 +45,10 @@ job "dns" {
 
       template {
         data          = <<EOF
+. {
+  forward . 1.1.1.1
+}
+
 service.nomad. {
   errors
   debug
