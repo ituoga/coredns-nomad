@@ -4,9 +4,7 @@ RUN apk update && apk add make git
 WORKDIR /app
 RUN git clone https://github.com/coredns/coredns
 COPY . /coredns-nomad
-RUN echo "nomad:github.com/ituoga/coredns-nomad" >> coredns/plugin.cfg
-RUN sed '/kubernetes:kubernetes/d' coredns/plugin.cfg
-RUN sed '/k8s_external:k8s_external/d' coredns/plugin.cfg
+COPY plugin.cfg coredns/plugin.cfg
 
 WORKDIR /app/coredns
 RUN go mod edit -replace github.com/ituoga/coredns-nomad=/coredns-nomad
