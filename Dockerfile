@@ -8,9 +8,9 @@ RUN echo "nomad:github.com/ituoga/coredns-nomad" >> coredns/plugin.cfg
 
 WORKDIR /app/coredns
 RUN go mod edit -replace github.com/ituoga/coredns-nomad=/coredns-nomad
-RUN --mount=type=cache,target=/root/.cache/go-build go mod download
+RUN --mount=type=cache,target=/root/go go mod download
 
-RUN --mount=type=cache,target=/root/.cache/go-build make gen coredns
+RUN --mount=type=cache,target=/root/go make gen coredns
 
 FROM scratch
 COPY --from=0 /app/coredns /
