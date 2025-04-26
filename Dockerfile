@@ -4,7 +4,7 @@ RUN apk update && apk add make git
 WORKDIR /app
 RUN git clone https://github.com/coredns/coredns
 COPY . /coredns-nomad
-COPY plugin.cfg coredns/plugin.cfg
+RUN /coredns-nomad/plugin.cfg coredns/plugin.cfg
 
 WORKDIR /app/coredns
 RUN go mod edit -replace github.com/ituoga/coredns-nomad=/coredns-nomad
