@@ -4,13 +4,14 @@ RUN apk update && apk add make git
 WORKDIR /app
 RUN git clone https://github.com/coredns/coredns
 COPY . /coredns-nomad
-RUN /coredns-nomad/plugin.cfg coredns/plugin.cfg
+RUN cp /coredns-nomad/plugin.cfg coredns/plugin.cfg
 
 WORKDIR /app/coredns
 RUN go mod edit -replace github.com/ituoga/coredns-nomad=/coredns-nomad
-RUN --mount=type=cache,target=/root/go go mod download
+RUN go mod download
 
-RUN --mount=type=cache,target=/root/go make gen coredns
+RUN make gen 
+RUN make coredns
 
 FROM scratch
 COPY --from=0 /app/coredns /
