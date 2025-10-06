@@ -1,3 +1,9 @@
+# Archive Notice 🔒
+
+This plugin was included in [CoreDNS v1.13.0](https://github.com/coredns/coredns/releases/tag/v1.13.0), which is why this repository has been archived.
+
+---
+
 # CoreDNS Nomad plugin
 
 ## Name
